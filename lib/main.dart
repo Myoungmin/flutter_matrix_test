@@ -124,10 +124,17 @@ class ImagePainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
+    // 이미지 중심 구하기
+    final Offset imageCenter = Offset(
+      size.width / 2 + offset.dx,
+      size.height / 2 + offset.dy,
+    );
+
+    // 매트릭스 설정
     final Matrix4 matrix = Matrix4.identity()
-      ..translate(size.width / 2, size.height / 2) // 캔버스 중심으로 이동
+      ..translate(imageCenter.dx, imageCenter.dy) // 이미지 중심으로 이동
       ..rotateZ(angle) // 각도 회전
-      ..translate(-size.width / 2, -size.height / 2) // 다시 원위치
+      ..translate(-imageCenter.dx, -imageCenter.dy) // 원래 위치로 되돌리기
       ..translate(offset.dx, offset.dy) // 사용자 입력에 따른 이동
       ..scale(scale); // 확대/축소
 
