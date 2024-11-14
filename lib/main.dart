@@ -62,11 +62,24 @@ class MatrixImagePainterState extends State<MatrixImagePainter> {
           }
         },
         onPointerDown: (details) {
-          lastFocalPoint = details.position;
+          if (details.buttons == kSecondaryMouseButton) {
+            // 오른쪽 마우스 버튼을 클릭했을 때 시계방향으로 90도 회전
+            setState(() {
+              angle += 90.0 * 3.1415927 / 180; // 90도 (라디안으로 변환)
+              if (angle >= 2 * 3.1415927) {
+                angle -= 2 * 3.1415927; // 각도를 0 ~ 2π 사이로 유지
+              }
+            });
+          } else if (details.buttons == kPrimaryMouseButton) {
+            // 왼쪽 마우스 버튼 눌렀을 때 팬 시작
+            lastFocalPoint = details.position;
+          }
         },
         onPointerMove: (details) {
           setState(() {
-            if (lastFocalPoint != null) {
+            if (lastFocalPoint != null &&
+                details.buttons == kPrimaryMouseButton) {
+              // 왼쪽 마우스 버튼으로 팬 이동 처리
               offset += details.position - lastFocalPoint!;
               lastFocalPoint = details.position;
             }
