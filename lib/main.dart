@@ -54,7 +54,7 @@ class MatrixImagePainterState extends State<MatrixImagePainter> {
       body: Center(
         child: isImageLoaded
             ? Container(
-                width: 400,
+                width: 600,
                 height: 400,
                 decoration: BoxDecoration(
                   border: Border.all(
@@ -144,9 +144,9 @@ class ImagePainter extends CustomPainter {
     final Matrix4 matrix = Matrix4.identity()
       ..translate(imageCenter.dx, imageCenter.dy) // 이미지 중심으로 이동
       ..rotateZ(angle) // 각도 회전
+      ..scale(scale) // 확대/축소
       ..translate(-imageCenter.dx, -imageCenter.dy) // 원래 위치로 되돌리기
-      ..translate(offset.dx, offset.dy) // 사용자 입력에 따른 이동
-      ..scale(scale); // 확대/축소
+      ..translate(offset.dx, offset.dy); // 사용자 입력에 따른 이동
 
     canvas.transform(matrix.storage); // 캔버스에 매트릭스 적용
 
