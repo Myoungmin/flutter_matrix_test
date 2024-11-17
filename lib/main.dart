@@ -24,6 +24,7 @@ class MatrixImagePainterState extends State<MatrixImagePainter> {
   double angle = 0.0; // 회전 각도 (라디안 단위)
 
   Offset? lastFocalPoint; // 마지막 마우스 포인트 위치
+  Offset? pointerImagePosition;
 
   @override
   void initState() {
@@ -62,53 +63,80 @@ class MatrixImagePainterState extends State<MatrixImagePainter> {
                     width: 2.0,
                   ),
                 ),
-                child: Listener(
-                  onPointerSignal: (pointerSignal) {
-                    // 마우스 휠로 스케일 조정
-                    if (pointerSignal is PointerScrollEvent) {
-                      setState(() {
-                        scale += pointerSignal.scrollDelta.dy > 0 ? 0.1 : -0.1;
-                        scale = scale.clamp(0.5, 3.0); // 스케일 범위 제한
-                      });
-                    }
-                  },
-                  onPointerDown: (details) {
-                    if (details.buttons == kSecondaryMouseButton) {
-                      // 오른쪽 마우스 버튼을 클릭했을 때 시계방향으로 90도 회전
-                      setState(() {
-                        angle += 90.0 * 3.1415927 / 180; // 90도 (라디안으로 변환)
-                        if (angle >= 2 * 3.1415927) {
-                          angle -= 2 * 3.1415927; // 각도를 0 ~ 2π 사이로 유지
-                        }
-                      });
-                    } else if (details.buttons == kPrimaryMouseButton) {
-                      // 왼쪽 마우스 버튼 눌렀을 때 팬 시작
-                      lastFocalPoint = details.position;
-                    }
-                  },
-                  onPointerMove: (details) {
+                child: MouseRegion(
+                  onHover: (details) {
                     setState(() {
-                      if (lastFocalPoint != null &&
-                          details.buttons == kPrimaryMouseButton) {
-                        // 왼쪽 마우스 버튼으로 팬 이동 처리
-                        offset += details.position - lastFocalPoint!;
-                        lastFocalPoint = details.position;
-                      }
+                      // 포인터의 이미지 좌표 계산
+                      final Offset transformedPointer =
+                          (details.localPosition - offset) / scale;
+
+                      pointerImagePosition = Offset(
+                        transformedPointer.dx,
+                        transformedPointer.dy,
+                      );
                     });
                   },
-                  onPointerUp: (details) {
-                    lastFocalPoint = null;
-                  },
-                  child: CustomPaint(
-                    painter: ImagePainter(
-                      image: image,
-                      offset: offset,
-                      scale: scale,
-                      angle: angle,
-                    ),
-                    child: const SizedBox(
-                      width: 400,
-                      height: 400,
+                  child: Listener(
+                    onPointerSignal: (pointerSignal) {
+                      if (pointerSignal is PointerScrollEvent) {
+                        setState(() {
+                          // 이전 스케일과 포인터 위치 계산
+                          final double previousScale = scale;
+                          final Offset focalPoint = pointerSignal.localPosition;
+
+                          // 마우스 위치 기준으로 이미지 좌표계의 포인트 계산
+                          final Offset focalPointInImage =
+                              (focalPoint - offset) / previousScale;
+
+                          // 새로운 스케일 계산
+                          scale +=
+                              pointerSignal.scrollDelta.dy > 0 ? 0.1 : -0.1;
+                          scale = scale.clamp(0.5, 3.0);
+
+                          // 새로운 offset 계산 (확대/축소 후에도 동일한 이미지 위치 고정)
+                          offset = focalPoint - focalPointInImage * scale;
+                        });
+                      }
+                    },
+                    onPointerDown: (details) {
+                      if (details.buttons == kSecondaryMouseButton) {
+                        // 오른쪽 마우스 버튼을 클릭했을 때 시계방향으로 90도 회전
+                        setState(() {
+                          angle += 90.0 * 3.1415927 / 180; // 90도 (라디안으로 변환)
+                          if (angle >= 2 * 3.1415927) {
+                            angle -= 2 * 3.1415927; // 각도를 0 ~ 2π 사이로 유지
+                          }
+                        });
+                      } else if (details.buttons == kPrimaryMouseButton) {
+                        // 왼쪽 마우스 버튼 눌렀을 때 팬 시작
+                        lastFocalPoint = details.position;
+                      }
+                    },
+                    onPointerMove: (details) {
+                      setState(() {
+                        if (lastFocalPoint != null &&
+                            details.buttons == kPrimaryMouseButton) {
+                          // 왼쪽 마우스 버튼으로 팬 이동 처리
+                          offset += details.position - lastFocalPoint!;
+                          lastFocalPoint = details.position;
+                        }
+                      });
+                    },
+                    onPointerUp: (details) {
+                      lastFocalPoint = null;
+                    },
+                    child: CustomPaint(
+                      painter: ImagePainter(
+                        image: image,
+                        offset: offset,
+                        scale: scale,
+                        angle: angle,
+                        pointerImagePosition: pointerImagePosition,
+                      ),
+                      child: const SizedBox(
+                        width: 400,
+                        height: 400,
+                      ),
                     ),
                   ),
                 ),
@@ -124,12 +152,14 @@ class ImagePainter extends CustomPainter {
   final Offset offset;
   final double scale;
   final double angle;
+  final Offset? pointerImagePosition;
 
   ImagePainter({
     required this.image,
     required this.offset,
     required this.scale,
     required this.angle,
+    this.pointerImagePosition,
   });
 
   @override
@@ -159,6 +189,16 @@ class ImagePainter extends CustomPainter {
     );
 
     canvas.drawImageRect(image, imageRect, Offset.zero & size, Paint());
+
+    // 디버깅 정보 출력
+    final paragraphBuilder = ui.ParagraphBuilder(
+        ui.ParagraphStyle(textAlign: TextAlign.left))
+      ..pushStyle(ui.TextStyle(color: Colors.red, fontSize: 14))
+      ..addText(
+          'Scale: $scale\nOffset: $offset\nPointer: ${pointerImagePosition?.toString() ?? "N/A"}');
+    final paragraph = paragraphBuilder.build()
+      ..layout(ui.ParagraphConstraints(width: size.width));
+    canvas.drawParagraph(paragraph, const Offset(10, 10));
   }
 
   @override
